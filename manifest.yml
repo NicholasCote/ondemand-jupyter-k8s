@@ -1,0 +1,7 @@
+---
+name: Jupyter (Kubernetes)
+category: Interactive Apps
+subcategory: Servers
+role: batch_connect
+description: |
+  This app launches a Jupyter Notebook server in the Cirrus Kubernetes cluster.
