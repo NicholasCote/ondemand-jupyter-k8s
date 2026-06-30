@@ -8,16 +8,27 @@
   #   2. inject the hashed password into the notebook config (configmap)
   #   3. inject the OnDemand reverse-proxy base_url (/node/HOST/PORT/)
   # OnDemand reads back the host/port/password to render the Connect button.
+  #
+  # NOTE on the two `add-line-to-configmap` calls below: the value being
+  # written needs single quotes to survive as a valid Python string literal,
+  # and $SALT/$PASSWORD_SHA1/$HOST_CFG/$PORT_CFG need to expand at container
+  # runtime -- which means they can't be wrapped in single quotes themselves.
+  # Wrapping them in double quotes (the original approach) works fine for
+  # *this* file's own YAML, but ood_core's pod.yml.erb later re-embeds this
+  # whole command string inside ANOTHER double-quoted YAML scalar without
+  # escaping it -- so any literal " we put here collides with that outer
+  # wrapping and breaks the generated manifest (the "did not find expected
+  # key" error). Building the apostrophe at runtime via `printf` with an
+  # octal escape avoids ever writing a literal " in this file, so there's
+  # nothing for the outer template to collide with. See the backslash count
+  # below carefully -- it's doubled because the same blind, unescaped
+  # substitution happens twice (this file's YAML parse, then pod.yml.erb's),
+  # and each pass un-escapes one level. Verified empirically; don't "simplify"
+  # the backslash count without re-testing end to end.
   # ---------------------------------------------------------------------------
   configmap_filename = "ondemand_config.py"
-
   # Public mirror of OSC's helper image. Pin a real tag before production use.
   utility_img = "docker.io/ohiosupercomputer/ood-k8s-utils:latest"
-
-  # Lines the init containers append to the notebook config at runtime.
-  pwd_cfg       = "c.NotebookApp.password=u'sha1:${SALT}:${PASSWORD_SHA1}'"
-  host_port_cfg = "c.NotebookApp.base_url='/node/${HOST_CFG}/${PORT_CFG}/'"
-
   user = OodSupport::User.new
 -%>
 ---
@@ -65,10 +76,10 @@ script:
         command:
           - "/bin/bash"
           - "-c"
-          - "source /bin/passwd_from_secret; source /bin/create_salt_and_sha1; /bin/add_line_to_configmap \"<%= pwd_cfg %>\" <%= configmap_filename %>"
+          - "source /bin/passwd_from_secret; source /bin/create_salt_and_sha1; Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.NotebookApp.password=u${Q}sha1:${SALT}:${PASSWORD_SHA1}${Q} <%= configmap_filename %>"
       - name: "add-hostport-to-cfg"
         image: "<%= utility_img %>"
         command:
           - "/bin/bash"
           - "-c"
-          - "source /bin/find_host_port; /bin/add_line_to_configmap \"<%= host_port_cfg %>\" <%= configmap_filename %>"
+          - "source /bin/find_host_port; Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.NotebookApp.base_url=${Q}/node/${HOST_CFG}/${PORT_CFG}/${Q} <%= configmap_filename %>"
