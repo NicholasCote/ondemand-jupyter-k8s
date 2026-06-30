@@ -37,7 +37,7 @@ script:
   native:
     container:
       name: "jupyter"
-      image: "quay.io/jupyter/scipy-notebook:latest"
+      image: "hub.k8s.ucar.edu/cirrus-jhub/jhub-cpu-nb:0.1.5"
       command: "/usr/local/bin/start.sh jupyter notebook --config=/ood/ondemand_config.py"
       working_dir: "<%= user.home %>"
       restart_policy: "OnFailure"
