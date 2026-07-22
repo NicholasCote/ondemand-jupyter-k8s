@@ -49,6 +49,14 @@ script:
       port: 8080
       cpu: "<%= cpu %>"
       memory: "<%= memory %>Gi"
+      volume_mounts:
+        - name: "home"
+          mount_path: "<%= user.home %>"
+    volumes:
+      - name: "home"
+        nfs:
+          server: "gladenfs.hpc.ucar.edu"
+          path: "<%= user.home %>"
     configmap:
       files:
         - filename: "<%= configmap_filename %>"
