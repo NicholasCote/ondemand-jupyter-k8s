@@ -1,9 +1,5 @@
 <%-
-  # Launch Jupyter in the Cirrus Kubernetes cluster. The ood-k8s-utils init
-  # containers below set a one-time password and the reverse-proxy base_url in
-  # the notebook config before Jupyter starts.
   configmap_filename = "ondemand_config.py"
-  # Public mirror of OSC's helper image. Pin a real tag before production use.
   utility_img = "docker.io/ohiosupercomputer/ood-k8s-utils:latest"
   user = OodSupport::User.new
 -%>
@@ -14,7 +10,8 @@ script:
     container:
       name: "jupyter"
       image: "quay.io/jupyter/scipy-notebook:latest"
-      command: "/usr/local/bin/start.sh /opt/conda/bin/jupyter notebook --config=/ood/ondemand_config.py"
+      # CHANGE 1: belt-and-braces port/ip on the CLI
+      command: "/usr/local/bin/start.sh /opt/conda/bin/jupyter notebook --config=/ood/ondemand_config.py --ServerApp.port=8080 --ServerApp.ip=0.0.0.0"
       working_dir: "<%= user.home %>"
       restart_policy: "OnFailure"
       env:
@@ -22,6 +19,8 @@ script:
         NB_USER: "<%= user.name %>"
         NB_GID: "<%= user.group.id %>"
         HOME: "<%= user.home %>"
+        # CHANGE 2: keep runtime state off NFS
+        JUPYTER_RUNTIME_DIR: "/tmp/jupyter/runtime"
       port: 8080
       cpu: "<%= cpu %>"
       memory: "<%= memory %>Gi"
@@ -35,17 +34,13 @@ script:
       files:
         - filename: "<%= configmap_filename %>"
           data: |
-            c.NotebookApp.port = 8080
-            c.NotebookApp.ip = '0.0.0.0'
-            c.NotebookApp.disable_check_xsrf = True
-            c.NotebookApp.allow_origin = '*'
+            c.ServerApp.port = 8080
+            c.ServerApp.ip = '0.0.0.0'
+            c.ServerApp.disable_check_xsrf = True
+            c.ServerApp.allow_origin = '*'
             c.Application.log_level = 'DEBUG'
           mount_path: "/ood"
     init_containers:
-      # The `Q=$(printf '\\\\047')` below builds a single quote at runtime: a
-      # literal " here would break ood_core's pod.yml.erb, which re-embeds this
-      # command in another double-quoted scalar. The backslash count is doubled
-      # because both templates un-escape one level. Don't reduce it untested.
       - name: "init-secret"
         image: "<%= utility_img %>"
         command:
@@ -56,10 +51,10 @@ script:
         command:
           - "/bin/bash"
           - "-c"
-          - "source /bin/passwd_from_secret; source /bin/create_salt_and_sha1; Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.NotebookApp.password=u${Q}sha1:${SALT}:${PASSWORD_SHA1}${Q} <%= configmap_filename %>"
+          - "source /bin/passwd_from_secret; source /bin/create_salt_and_sha1; Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.PasswordIdentityProvider.hashed_password=${Q}sha1:${SALT}:${PASSWORD_SHA1}${Q} <%= configmap_filename %>"
       - name: "add-hostport-to-cfg"
         image: "<%= utility_img %>"
         command:
           - "/bin/bash"
           - "-c"
-          - "source /bin/find_host_port; Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.NotebookApp.base_url=${Q}/node/${HOST_CFG}/${PORT_CFG}/${Q} <%= configmap_filename %>"
+          - "source /bin/find_host_port; Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.ServerApp.base_url=${Q}/node/${HOST_CFG}/${PORT_CFG}/${Q} <%= configmap_filename %>"
