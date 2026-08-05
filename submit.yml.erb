@@ -29,7 +29,7 @@ script:
       - type: nfs
         name: home
         host: "gladenfs.hpc.ucar.edu"
-        path: "<%= user.home %>"
+        path: "/gpfs/u/home/<%= user.name %>"
         destination_path: "<%= user.home %>"
     configmap:
       files:
