@@ -13,8 +13,8 @@ script:
   native:
     container:
       name: "jupyter"
-      image: "hub.k8s.ucar.edu/cirrus-jhub/jhub-cpu-nb:0.1.5"
-      command: "jupyter notebook --config=/ood/ondemand_config.py"
+      image: "quay.io/jupyter/scipy-notebook:latest"
+      command: "/usr/local/bin/start.sh /opt/conda/bin/jupyter notebook --config=/ood/ondemand_config.py"
       working_dir: "<%= user.home %>"
       restart_policy: "OnFailure"
       env:
@@ -25,14 +25,12 @@ script:
       port: 8080
       cpu: "<%= cpu %>"
       memory: "<%= memory %>Gi"
-      volume_mounts:
-        - name: "home"
-          mount_path: "<%= user.home %>"
-    volumes:
-      - name: "home"
-        nfs:
-          server: "gladenfs.hpc.ucar.edu"
-          path: "<%= user.home %>"
+    mounts:
+      - type: nfs
+        name: home
+        host: "gladenfs.hpc.ucar.edu"
+        path: "<%= user.home %>"
+        destination_path: "<%= user.home %>"
     configmap:
       files:
         - filename: "<%= configmap_filename %>"
