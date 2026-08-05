@@ -57,4 +57,4 @@ script:
         command:
           - "/bin/bash"
           - "-c"
-          - "source /bin/find_host_port; Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.ServerApp.base_url=${Q}/node/${HOST_CFG}/${PORT_CFG}/${Q} <%= configmap_filename %>"
+          - "PORT_CFG=$(kubectl get services $(hostname)-service -o jsonpath='{.spec.ports[0].nodePort}'); HOST_CFG=$(kubectl get pods $(hostname) -o jsonpath='{.spec.nodeName}'); Q=$(printf '\\\\047'); /bin/add_line_to_configmap c.ServerApp.base_url=${Q}/node/${HOST_CFG}/${PORT_CFG}/${Q} <%= configmap_filename %>"
