@@ -11,7 +11,7 @@ script:
       name: "jupyter"
       image: "quay.io/jupyter/scipy-notebook:latest"
       # CHANGE 1: belt-and-braces port/ip on the CLI
-      command: "/usr/local/bin/start.sh /opt/conda/bin/jupyter notebook --config=/ood/ondemand_config.py --ServerApp.port=8080 --ServerApp.ip=0.0.0.0"
+      command: "/usr/local/bin/start.sh /opt/conda/bin/jupyter lab --config=/ood/ondemand_config.py --ServerApp.port=8080 --ServerApp.ip=0.0.0.0"
       working_dir: "<%= user.home %>"
       restart_policy: "OnFailure"
       env:
